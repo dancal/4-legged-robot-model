@@ -6,14 +6,18 @@ Created on Mon Mar  9 14:05:02 2020
 @author: miguel-asd
 """
 
-from evdev import InputDevice, categorize, ecodes
+#from evdev import InputDevice, categorize, ecodes
 from select import select
 import numpy as np
+import pygame
+#import keyboard
 
+pygame.init()
+pygame.joystick.init()
 class Joystick:
     def __init__(self , event):
         #python3 /usr/local/lib/python3.8/dist-packages/evdev/evtest.py for identify event
-        self.gamepad = InputDevice(event)
+        #self.gamepad = InputDevice(event)
         self.L3 = np.array([0. , 0.])
         self.R3 = np.array([0. , 0.])
         
@@ -31,7 +35,45 @@ class Joystick:
         self.CoM_pos = np.zeros(3)
         self.CoM_orn = np.zeros(3)
         self.calibration = 0
+
     def read(self):
+        for event in pygame.event.get():  # User did something.
+            if event.type == pygame.QUIT:  # If user clicked close.
+                continuer = False
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mouseclick = True
+            else:
+                mouseclick = False
+
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_UP:
+                    self.CoM_pos[2] += 0.002
+                    print('KUP')
+                if event.key == pygame.K_DOWN:
+                    self.CoM_pos[2] -= 0.002
+                if event.key == pygame.K_LEFT:
+                    self.T -= 0.05
+                if event.key == pygame.K_RIGHT:
+                    self.T += 0.05
+
+            if self.poseMode == False:           
+                self.V = np.sqrt(self.L3[1]**2 + self.L3[0]**2)/100.
+                self.angle = np.rad2deg(np.arctan2(-self.L3[0] , -self.L3[1]))
+                self.Wrot = -self.R3[0]/250.
+        #        Lrot = 0.
+                if self.V <= 0.035:
+                    self.V = 0.
+                if self.Wrot <= 0.035 and self.Wrot >= -0.035:
+                    self.Wrot = 0.
+            else:
+                self.CoM_orn[0] = np.deg2rad(self.R3[0]/3)
+                self.CoM_orn[1] = np.deg2rad(self.L3[1]/3)
+                self.CoM_orn[2] = -np.deg2rad(self.L3[0]/3)
+                self.CoM_pos[0] = -self.R3[1]/5000
+            
+        return self.CoM_pos , self.CoM_orn , self.V , -self.angle , -self.Wrot , self.T , self.compliantMode
+
+    def read_org(self):
         r,w,x = select([self.gamepad.fd], [], [], 0.)
         
         if r:
